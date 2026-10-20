@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     attempts INTEGER NOT NULL DEFAULT 0,
     max_attempts INTEGER NOT NULL DEFAULT 5,
     priority INTEGER NOT NULL DEFAULT 0,
+    meta TEXT NOT NULL DEFAULT '{}',             -- JSON dict (multica_issue_id vb.)
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
 );
@@ -241,7 +242,8 @@ class Store:
             self._conn.commit()
 
     def finish(self, task_id: int, status: str,
-               skip_gate_check: bool = False) -> dict | None:
+               skip_gate_check: bool = False,
+               by: str = "operator") -> dict | None:
         """done ancak tüm gate'ler geçerse olur (fail-closed).
 
         skip_gate_check yalnız sistem işlemleri (ör. DAG testleri) içindir;
@@ -254,6 +256,10 @@ class Store:
             if not report.all_required_passed:
                 failing = [n for n, g in report.gates.items() if not g["passed"]]
                 raise GateNotPassed(f"done reddedildi — gate'ler geçmedi: {failing}")
+        if status == "done" and skip_gate_check:
+            # gate baypası yalnız insan kararıyladır; iz bırakmazsa fail-open
+            # deliği olur (ARCHITECTURE §5)
+            self._event(task_id, "system", "gate_bypass", {"by": by})
         with self._lock:
             self._conn.execute(
                 "UPDATE tasks SET status=?, updated_at=? WHERE id=?",
@@ -457,6 +463,7 @@ class Store:
         d = dict(row)
         d["depends_on"] = json.loads(d["depends_on"])
         d["artifacts"] = json.loads(d["artifacts"])
+        d["meta"] = json.loads(d.get("meta") or "{}")
         return d
 
 

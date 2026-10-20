@@ -81,6 +81,19 @@ Lead beyni (plan→onay→dispatch→gate sweep):
 factory-lead $WS --runner 'claude -p' --once    # veya --interval ile döngü
 ```
 
+## Multica köprüsü (UI = Multica, kanıt = Factory)
+
+Factory task'larını Multica issue'larına bağla, sonra döngüyü sürdür:
+```bash
+link_issue(store, task_id, "<multica-issue-uuid>")   # veya meta'ya elle
+MULTICA_TOKEN=*** MULTICA_WORKSPACE_ID=... \
+  python -m factory.multica $WS --interval 30
+```
+Gate'ler yeşilse issue `in_review` olur; kanıt kaybolursa geri çekilir;
+sen UI'da `done` dersen Factory task'ı kapanır (kanıtsızsa `gate_bypass`
+denet olayıyla). Multica'yı upstream'e bağlı tutmak için:
+`scripts/multica-follow.sh` (ADR-007: fork yok, API köprüsü).
+
 ## Test
 
 ```bash
