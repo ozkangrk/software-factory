@@ -10,8 +10,9 @@ services:
     restart: unless-stopped
 
   # Örnek: worker sandbox konteynerı — işveren (Multica/dispatcher) task
-  # başına `docker run factory-worker ... check/finalize` çağırır.
+  # başına `docker compose run --rm worker-smoke /data check <id>` çağırır.
   # Bu servis long-running DEĞİLDİR; compose'da sadece profile ile gelir.
+  # Not: `factory` imajının ENTRYPOINT'i CLI'dır; ilk arg workspace'tir.
   worker-smoke:
     profiles: ["smoke"]
     image: factory:latest

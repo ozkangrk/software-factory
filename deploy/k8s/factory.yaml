@@ -23,7 +23,7 @@ spec:
       containers:
         - name: factory
           image: factory:latest
-          command: ["sleep", "infinity"]   # CLI-on-demand; worker'lar exec eder
+          args: ["--help"]               # CLI-on-demand; worker'lar exec eder
           env:
             - name: FACTORY_WORKSPACE
               value: /data
