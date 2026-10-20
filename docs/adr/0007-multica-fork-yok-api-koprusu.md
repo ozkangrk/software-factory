@@ -1,6 +1,6 @@
 # ADR-007: Multica fork'lanmaz — API köprüsü + upstream-follow
 
-Durum: kabul · Tarih: 2026-10-20
+Durum: **geçersiz** (2026-10-20, ADR-008 ile bridge terk edildi) · Kabul: 2026-10-20
 
 Bağlam: Kurucu "Multica'yı forklayıp üzerine geliştirelim, UI'larını
 kullanalım, DAG'a çevirelim" önerdi + "Multica'yı sürekli canlıdan takip
