@@ -110,8 +110,10 @@ def _sha(path: str) -> str:
 
 
 class Store:
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, workspace: str | Path | None = None):
         self.db_path = str(db_path)
+        self._workspace = str(workspace) if workspace else \
+            str(Path(self.db_path).parent)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -164,11 +166,13 @@ class Store:
     def claim(self, worker: str, domain: str, lease_seconds: float = 1200) -> dict | None:
         """Ready + bağımlılıkları done task'lardan birini atomik claim et.
 
-        Süresi dolmuş lease'lar geri alınır (attempts++); max_attempts'ı aşan
-        task blocked olur (CS10: 5 deneme sonrası pes et). lease_seconds<=0
-        anında süresi dolmuş lease demektir ve ilk adımda iade edilir.
+        'lead' domain'i sistem içidir: agent claim'i YAPAMAZ (lead beyni
+        yönetir). Süresi dolmuş lease'lar geri alınır (attempts++);
+        max_attempts'ı aşan task blocked olur (CS10: 5 deneme sonrası pes et).
         """
         now = _now()
+        if domain == "lead":
+            return None
         with self._lock:
             if lease_seconds <= 0:
                 # canlıyken alınmış lease'ı hemen düşür: expires'ı geçmişe al
@@ -199,9 +203,12 @@ class Store:
                 deps = json.loads(r["depends_on"])
                 if deps and not self._all_done(deps):
                     continue
-                if r["parent_id"] and self._conn.execute(
-                        "SELECT status FROM tasks WHERE id=?",
-                        (r["parent_id"],)).fetchone()["status"] != "done":
+                # plan-kind parent'lar (DAG kökü) done sayılır — plan onayı
+                # çocukları serbest bırakır; gerçek parent'lar done olmalı
+                parent_ok = (lambda pid: pid is None or self._conn.execute(
+                    "SELECT 1 FROM tasks WHERE id=? AND (kind='plan' OR status='done')",
+                    (pid,)).fetchone() is not None)
+                if not parent_ok(r["parent_id"]):
                     continue
                 self._conn.execute(
                     "INSERT INTO leases(task,worker,expires) VALUES(?,?,?)",
@@ -234,7 +241,7 @@ class Store:
             self._conn.commit()
 
     def finish(self, task_id: int, status: str,
-               skip_gate_check: bool = False) -> dict:
+               skip_gate_check: bool = False) -> dict | None:
         """done ancak tüm gate'ler geçerse olur (fail-closed).
 
         skip_gate_check yalnız sistem işlemleri (ör. DAG testleri) içindir;
@@ -255,6 +262,21 @@ class Store:
             self._event(task_id, "system", status, {})
             self._conn.commit()
         return self.get_task(task_id)
+
+    def _insert_task_raw(self, domain: str, title: str, body: str = "",
+                         kind: str = "feature", parent_id: int | None = None,
+                         status: str = "ready") -> int:
+        """Ham INSERT — plan DAG'ının iki-geçişli kurulumu için (agent_tools)."""
+        now = _now()
+        with self._lock:
+            cur = self._conn.execute(
+                "INSERT INTO tasks(domain,title,body,kind,status,parent_id,"
+                "created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+                (domain, title, body, kind, status, parent_id, now, now))
+            self._event(cur.lastrowid, "system", "created",
+                        {"domain": domain, "kind": kind, "status": status})
+            self._conn.commit()
+            return cur.lastrowid
 
     # ---------- gate kayıtları (kanıt girişleri) ----------
 

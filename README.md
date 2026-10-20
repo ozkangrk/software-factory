@@ -62,6 +62,25 @@ Multica issue `review` state'ine geçtiğinde webhook/loop bu repo'nun
 `check`+`finalize` çağrısını çalıştırır; exit 0 olmadan issue done olmaz.
 Worker'lar Claude Code/Codex CLI; kanıt dosyaları task workspace'inde durur.
 
+## Ajan araçları (birbirini çağırma)
+
+Ajanlar serbest chat yapmaz; registry-denetimli araçları çağırır (ADR-006):
+`request_task` (başka domain'e çocuk iş), `report_result`, `ask_domain`
+(hedef domain'in CONTEXT.md+contract'ları), `request_contract_change`
+(sahibi+aktif worker), `submit_plan`, `approve_plan`. Kimlik = aktif claim.
+
+Claude Code'a MCP olarak bağlanır:
+```bash
+claude mcp add factory -- python -m factory.mcp --workspace $WS
+```
+CLI'dan da aynı dispatch: `factory $WS call request_task '{"caller":...}'`
+Araç listesi: `factory $WS tools`.
+
+Lead beyni (plan→onay→dispatch→gate sweep):
+```bash
+factory-lead $WS --runner 'claude -p' --once    # veya --interval ile döngü
+```
+
 ## Test
 
 ```bash

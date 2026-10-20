@@ -17,6 +17,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from . import agent_tools
 from .domain import DomainError, load_domain, scaffold_domain, sync_to_store
 from .gates import evaluate_gates, GATE_NAMES
 from .store import GateNotPassed, Store
@@ -25,7 +26,7 @@ from .store import GateNotPassed, Store
 def _store(args) -> Store:
     ws = Path(args.workspace)
     ws.mkdir(parents=True, exist_ok=True)
-    return Store(ws / "registry.db")
+    return Store(ws / "registry.db", workspace=ws)
 
 
 def cmd_domain_add(args):
@@ -126,6 +127,23 @@ def cmd_stats(args):
     print(json.dumps(_store(args).stats()))
 
 
+def cmd_call(args):
+    """Ajan aracını CLI'dan çağır (MCP sunucusuyla aynı dispatch)."""
+    st = _store(args)
+    try:
+        kwargs = json.loads(args.json) if args.json else {}
+    except json.JSONDecodeError as e:
+        print(f"geçersiz JSON: {e}", file=sys.stderr)
+        sys.exit(2)
+    res = agent_tools.dispatch(st, args.tool, kwargs)
+    print(json.dumps(res, ensure_ascii=False))
+    sys.exit(0 if res.get("ok") else 1)
+
+
+def cmd_tools(args):
+    print(json.dumps(agent_tools.tool_manifest(), ensure_ascii=False, indent=2))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="factory")
     ap.add_argument("workspace")
@@ -198,6 +216,14 @@ def main(argv=None):
 
     s = sub.add_parser("stats")
     s.set_defaults(fn=cmd_stats)
+
+    ca = sub.add_parser("call")
+    ca.add_argument("tool")
+    ca.add_argument("json", nargs="?", default=None)
+    ca.set_defaults(fn=cmd_call)
+
+    to = sub.add_parser("tools")
+    to.set_defaults(fn=cmd_tools)
 
     args = ap.parse_args(argv)
     if getattr(args, "cmd", None) == "test-run" and args.cmd and args.cmd[0] == "--":

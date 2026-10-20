@@ -177,7 +177,9 @@ class TestContractGate:
         store.set_artifact(task["id"], "analysis", str(p))
         store.add_contract_touch(task["id"], "auth/api.yaml", owner_domain="auth")
         report = evaluate_gates(store, task["id"], workspace=tmp_path)
-        assert not report.by_name("contract_sync")["passed"]
+        # contract_sync BAĞIMSIZ task'ta denetlenir (cross-request parent'ı
+        # bekler; parent kendi child'ını beklemez — kilitlenme önlemi).
+        # Spawn + spawn olmadan done ayrımı test_all_children_done_passes'te.
         kids = store.children_of(task["id"])
         assert {k["domain"] for k in kids} == {"auth", "billing"}
 

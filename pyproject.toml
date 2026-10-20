@@ -7,6 +7,8 @@ dependencies = ["pyyaml>=6.0"]
 
 [project.scripts]
 factory = "factory.cli:main"
+factory-mcp = "factory.mcp:main"
+factory-lead = "factory.lead:main"
 
 [dependency-groups]
 dev = ["pytest>=8.0"]

@@ -152,15 +152,23 @@ def _gate_contract(store, task_id: int) -> dict:
         "SELECT * FROM contract_touches WHERE task=?", (task_id,)).fetchall()
     if not touches:
         return {"passed": True, "reason": "contract'a dokunulmadı"}
+    touched_paths = {t["path"] for t in touches}
     kids = store.children_of(task_id)
-    open_kids = [k for k in kids if k["status"] != "done"]
+    # contract spawn'ları: dosya-yollu inceleme task'ları (title'daki path
+    # etiketiyle eşleşir) — hepsi done olmalı
+    contract_kids = [k for k in kids
+                     if k["kind"] == "contract"
+                     and any(f"'{p}'" in k["title"] for p in touched_paths)]
+    open_kids = [k for k in contract_kids if k["status"] != "done"]
     if open_kids:
         return {"passed": False,
                 "reason": f"{len(open_kids)} bağımlı domain incelemesi açık: "
                           f"{[k['domain'] for k in open_kids]}"}
+    # cross request'lar kendi bağımsız DAG'larıdır: parent'ı bekler,
+    # parent'ı beklemez (kilitlenme yok)
     owners = {t["owner_domain"] for t in touches}
     return {"passed": True, "evidence": {"contracts": sorted(owners),
-                                         "children_done": len(kids)}}
+                                         "children_done": len(contract_kids)}}
 
 
 # ---------- kolaylık yazıcıları (test/harness tarafı) ----------
