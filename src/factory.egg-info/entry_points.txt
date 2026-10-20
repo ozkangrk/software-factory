@@ -1,4 +1,0 @@
-[console_scripts]
-factory = factory.cli:main
-factory-lead = factory.lead:main
-factory-mcp = factory.mcp:main

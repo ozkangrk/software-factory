@@ -6,3 +6,5 @@ __pycache__/
 factory-workspace/
 ws/
 ws/
+src/*.egg-info/
+domains/
