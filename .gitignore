@@ -2,5 +2,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-uv.lock
+
 factory-workspace/
+ws/
+ws/
