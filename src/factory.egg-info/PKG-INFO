@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: factory
+Version: 0.1.0
+Summary: Kanıt-tabanlı gate + domain denetleyicisi — software factory kontrol katmanı (Multica üstünde ince katman)
+Requires-Python: >=3.11
+Requires-Dist: pyyaml>=6.0

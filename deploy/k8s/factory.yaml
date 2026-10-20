@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: factory-data
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: factory-gatekeeper
+spec:
+  replicas: 1                 # SQLite tek-yazar: aktif-replika YOK; scale=1
+  selector:
+    matchLabels: {app: factory-gatekeeper}
+  template:
+    metadata:
+      labels: {app: factory-gatekeeper}
+    spec:
+      containers:
+        - name: factory
+          image: factory:latest
+          command: ["sleep", "infinity"]   # CLI-on-demand; worker'lar exec eder
+          env:
+            - name: FACTORY_WORKSPACE
+              value: /data
+          volumeMounts:
+            - {name: data, mountPath: /data}
+          readinessProbe:
+            exec:
+              command: ["python", "-c",
+                        "import sqlite3; sqlite3.connect('/data/registry.db').execute('select 1')"]
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: factory-data}
+---
+# Gate denetimi işçi pod'ları: dispatcher her task için bir Job başlatır;
+# Job `factory /data check <id>` çalıştırır, exit code != 0 => done yok.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: factory-sweeper
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: sweeper
+              image: factory:latest
+              command: ["/data", "stats"]
+              volumeMounts:
+                - {name: data, mountPath: /data}
+          volumes:
+            - name: data
+              persistentVolumeClaim: {claimName: factory-data}

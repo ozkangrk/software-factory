@@ -1,0 +1,23 @@
+services:
+  gatekeeper:
+    image: factory:latest
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    command: ["--help"]          # CLI-on-demand; sunucu modu gerekmiyor
+    volumes:
+      - factory-data:/data
+    restart: unless-stopped
+
+  # Örnek: worker sandbox konteynerı — işveren (Multica/dispatcher) task
+  # başına `docker run factory-worker ... check/finalize` çağırır.
+  # Bu servis long-running DEĞİLDİR; compose'da sadece profile ile gelir.
+  worker-smoke:
+    profiles: ["smoke"]
+    image: factory:latest
+    volumes:
+      - factory-data:/data
+    command: ["/data", "stats"]
+
+volumes:
+  factory-data:
