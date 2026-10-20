@@ -8,3 +8,4 @@ ws/
 ws/
 src/*.egg-info/
 domains/
+uv.lock
